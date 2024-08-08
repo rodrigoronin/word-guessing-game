@@ -1,0 +1,49 @@
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+main {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.word-game {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  margin-top: 1em;
+  gap: 10px;
+}
+
+.title {
+  font-size: 2em;
+  padding-bottom: 1em;
+  margin-bottom: 2em;
+  width: 300px;
+  text-align: center;
+
+  border-bottom: 2px solid black;
+}
+
+.letters {
+  display: flex;
+  gap: 10px;
+
+  list-style-type: none;
+}
+
+.letter-box {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 50px;
+  height: 50px;
+  font-size: 3em;
+
+  border: 3px solid #999999;
+}
