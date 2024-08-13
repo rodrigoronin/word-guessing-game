@@ -11,6 +11,7 @@ let currentIndex: number = 0; // used to erase letters
 let userGuess: string = '';
 let wordSize: number = 5;
 let currentLetterRow: number = 0;
+let loading: boolean;
 
 // break the nodeslist into smaller arrays
 const chunkArray = <T>(array: T[], size: number): T[][] => {
@@ -33,6 +34,7 @@ const getSecretWord = async (): Promise<String> => {
 }
 
 const checkValidGuess = async (guess: string): Promise<Boolean> => {
+  loading = true;
   const request: Response = await fetch('https://words.dev-apis.com/validate-word', {
     method: 'POST',
     body: JSON.stringify({ word: guess })
@@ -40,11 +42,11 @@ const checkValidGuess = async (guess: string): Promise<Boolean> => {
 
   const { validWord } = await request.json();
 
-  console.log(validWord);
-
+  loading = false;
   return validWord;
 }
 
+// Get the char count of a string
 const stringMapper = (word: String): Map<string, number> => {
   const mappedObject = new Map<string, number>;
 
@@ -67,7 +69,7 @@ async function init() {
   function handleInput(input: KeyboardEvent): void {
     const regex: RegExp = new RegExp('^[a-zA-Z]$');
 
-    if (input.key === 'Enter' && userGuess.length === wordSize) {
+    if (input.key === 'Enter' && userGuess.length === wordSize && !loading) {
       validateWord();
     } else if (input.key === 'Backspace') {
       eraseLetter();
@@ -103,22 +105,21 @@ async function init() {
     const isValid: Boolean = await checkValidGuess(userGuess);
 
     checkValidGuess(userGuess);
+    console.log(loading);
 
     if (userGuess === dailyWord) {
       console.log('You win!');
     }
 
+    // If not a valid word clear the row
     if (!isValid) {
       console.log(`${userGuess} is not a valid word`);
 
       for (let i = 0; i < dailyWord.length; i++) {
-        letterRows[currentLetterRow][i].style.backgroundColor = 'black';
-        letterRows[currentLetterRow][i].style.color = 'white';
+        letterRows[currentLetterRow][i].textContent = '';
       }
 
       userGuess = '';
-      currentLetterRow++;
-
       return;
     }
 
