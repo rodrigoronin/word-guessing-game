@@ -7,10 +7,10 @@ interface Word {
 
 const nodeList: NodeListOf<HTMLElement> = document.querySelectorAll('.letter-box');
 const chars: HTMLElement[] = [...nodeList];
-let currentIndex: number = 0;
-let wordBuffer: string = '';
+let currentIndex: number = 0; // used to erase letters
+let userGuess: string = '';
 let wordSize: number = 5;
-let letterBoxIndex: number = 0;
+let currentLetterRow: number = 0;
 
 // break the nodeslist into smaller arrays
 const chunkArray = <T>(array: T[], size: number): T[][] => {
@@ -23,85 +23,136 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   return result;
 }
 
-const letterBoxes: HTMLElement[][] = chunkArray(chars, 5);
+const letterRows: HTMLElement[][] = chunkArray(chars, 5);
 
-const getWord = async (): Promise<Word> => {
-  const wordFetch: Response = await fetch('https://words.dev-apis.com/word-of-the-day?puzzle=10');
-  const word: Word = await wordFetch.json();
+const getSecretWord = async (): Promise<String> => {
+  const wordFetch: Response = await fetch('https://words.dev-apis.com/word-of-the-day?random=1');
+  const { word }: Word = await wordFetch.json();
 
   return word;
 }
 
-const word: Word = await getWord();
+const checkValidGuess = async (guess: string): Promise<Boolean> => {
+  const request: Response = await fetch('https://words.dev-apis.com/validate-word', {
+    method: 'POST',
+    body: JSON.stringify({ word: guess })
+  });
 
-console.log(word);
+  const { validWord } = await request.json();
 
-const handleInput = (input: KeyboardEvent): void => {
-  writeChar(input);
+  console.log(validWord);
 
-  if (input.key === 'Enter' && wordBuffer.length === wordSize) {
-    validateWord();
-  }
-
-  if (input.key === 'Backspace') {
-    eraseChar();
-  }
+  return validWord;
 }
 
-const writeChar = (input: KeyboardEvent): void => {
-  const regex: RegExp = new RegExp('^[a-zA-Z]+$');
+const stringMapper = (word: String): Map<string, number> => {
+  const mappedObject = new Map<string, number>;
 
-  if (input.key.length === 1 && regex.test(input.key)) {
+  for (let i = 0; i < word.length; i++) {
+    const letter: string = word[i];
+
+    if (mappedObject.get(letter)) {
+      mappedObject.set(letter, (mappedObject.get(word[i]) || 0) + 1);
+    } else {
+      mappedObject.set(letter, 1);
+    }
+  }
+
+  return mappedObject;
+}
+
+async function init() {
+  const dailyWord: String = await getSecretWord();
+
+  function handleInput(input: KeyboardEvent): void {
+    const regex: RegExp = new RegExp('^[a-zA-Z]$');
+
+    if (input.key === 'Enter' && userGuess.length === wordSize) {
+      validateWord();
+    } else if (input.key === 'Backspace') {
+      eraseLetter();
+    } else if (regex.test(input.key)) {
+      writeLetter(input);
+    }
+  }
+
+  const writeLetter = (input: KeyboardEvent): void => {
     for (let i = 0; i < chars.length; i++) {
-      if (!chars[i].textContent && wordBuffer.length < wordSize) {
+      if (!chars[i].textContent && userGuess.length < wordSize) {
         chars[i].textContent = input.key.toUpperCase();
-        wordBuffer += input.key;
+        userGuess += input.key;
         currentIndex = i;
 
         break;
       }
     }
   }
-}
 
-const validateWord = () => {
-  if (wordBuffer === word.word) {
-    console.log('You win!');
-  }
+  const eraseLetter = (): void => {
+    if (userGuess.length > 0) {
+      const slicedWord: string = userGuess.slice(0, -1);
+      userGuess = slicedWord;
 
-  for (let i = 0; i < word.word.length; i++) {
-    const letter = word.word[i];
-
-    for (let j = 0; j < wordBuffer.length; j++) {
-      const guess = wordBuffer[j];
-
-      if (word.word.indexOf(guess) === -1) {
-        console.log(guess, ' absent');
-      }
-
-      if (guess === letter && i === j) {
-        letterBoxes[letterBoxIndex][j].style.backgroundColor = 'green';
-        console.log(guess, ' correct');
-      }
-
-      if (guess === letter && i !== j) {
-        console.log(guess, ' misplaced');
-      }
+      chars[currentIndex].textContent = '';
+      currentIndex--;
     }
   }
 
-  wordBuffer = '';
-  letterBoxIndex++;
-}
+  const validateWord = async () => {
+    const mappedDailyWord: Map<string, number> = stringMapper(dailyWord);
+    const isValid: Boolean = await checkValidGuess(userGuess);
 
-const eraseChar = (): void => {
-  if (wordBuffer.length > 0) {
-    const slicedWord: string = wordBuffer.slice(0, -1);
-    wordBuffer = slicedWord;
+    checkValidGuess(userGuess);
 
-    chars[currentIndex].textContent = '';
-    currentIndex--;
+    if (userGuess === dailyWord) {
+      console.log('You win!');
+    }
+
+    if (!isValid) {
+      console.log(`${userGuess} is not a valid word`);
+
+      for (let i = 0; i < dailyWord.length; i++) {
+        letterRows[currentLetterRow][i].style.backgroundColor = 'black';
+        letterRows[currentLetterRow][i].style.color = 'white';
+      }
+
+      userGuess = '';
+      currentLetterRow++;
+
+      return;
+    }
+
+    // Check for all correct letters first to make sure the letter
+    // count will be right for the next loop
+    for (let i = 0; i < dailyWord.length; i++) {
+      const currentLetterQnt: number = mappedDailyWord.get(userGuess[i]) ?? 0;
+
+      if (userGuess[i] === dailyWord[i]) {
+        letterRows[currentLetterRow][i].style.backgroundColor = 'green';
+        mappedDailyWord.set(userGuess[i], currentLetterQnt - 1);
+      }
+    }
+
+    // After correct guesses are verified, validate the wrong and absent
+    for (let i = 0; i < dailyWord.length; i++) {
+      const currentLetterQnt: number = mappedDailyWord.get(userGuess[i]) ?? 0;
+
+      if (userGuess[i] === dailyWord[i]) {
+        // chill
+      } else if (dailyWord.includes(userGuess[i]) && currentLetterQnt > 0) {
+        letterRows[currentLetterRow][i].style.backgroundColor = 'yellow';
+        mappedDailyWord.set(userGuess[i], currentLetterQnt - 1);
+      } else {
+        letterRows[currentLetterRow][i].style.backgroundColor = 'black';
+        letterRows[currentLetterRow][i].style.color = 'white';
+      }
+    }
+
+    userGuess = '';
+    currentLetterRow++;
   }
+
+  document.addEventListener('keyup', handleInput, false);
 }
 
-document.addEventListener('keyup', handleInput, false);
+init();
