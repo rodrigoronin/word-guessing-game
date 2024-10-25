@@ -1,14 +1,15 @@
-import './style.css'
+import "./style.css";
 
 interface Word {
   word: string;
   puzzleNumber: number;
 }
 
-const nodeList: NodeListOf<HTMLElement> = document.querySelectorAll('.letter-box');
+const nodeList: NodeListOf<HTMLElement> =
+  document.querySelectorAll(".letter-box");
 const chars: HTMLElement[] = [...nodeList];
 let currentIndex: number = 0; // used to erase letters
-let userGuess: string = '';
+let userGuess: string = "";
 let wordSize: number = 5;
 let currentLetterRow: number = 0;
 let loading: boolean;
@@ -22,33 +23,38 @@ const chunkArray = <T>(array: T[], size: number): T[][] => {
   }
 
   return result;
-}
+};
 
 const letterRows: HTMLElement[][] = chunkArray(chars, 5);
 
 const getSecretWord = async (): Promise<String> => {
-  const wordFetch: Response = await fetch('https://words.dev-apis.com/word-of-the-day?random=1');
+  const wordFetch: Response = await fetch(
+    "https://words.dev-apis.com/word-of-the-day?random=1"
+  );
   const { word }: Word = await wordFetch.json();
 
   return word;
-}
+};
 
 const checkValidGuess = async (guess: string): Promise<Boolean> => {
   loading = true;
-  const request: Response = await fetch('https://words.dev-apis.com/validate-word', {
-    method: 'POST',
-    body: JSON.stringify({ word: guess })
-  });
+  const request: Response = await fetch(
+    "https://words.dev-apis.com/validate-word",
+    {
+      method: "POST",
+      body: JSON.stringify({ word: guess }),
+    }
+  );
 
   const { validWord } = await request.json();
 
   loading = false;
   return validWord;
-}
+};
 
 // Get the char count of a string
 const stringMapper = (word: String): Map<string, number> => {
-  const mappedObject = new Map<string, number>;
+  const mappedObject = new Map<string, number>();
 
   for (let i = 0; i < word.length; i++) {
     const letter: string = word[i];
@@ -61,17 +67,17 @@ const stringMapper = (word: String): Map<string, number> => {
   }
 
   return mappedObject;
-}
+};
 
 async function init() {
   const dailyWord: String = await getSecretWord();
 
   function handleInput(input: KeyboardEvent): void {
-    const regex: RegExp = new RegExp('^[a-zA-Z]$');
+    const regex: RegExp = new RegExp("^[a-zA-Z]$");
 
-    if (input.key === 'Enter' && userGuess.length === wordSize && !loading) {
+    if (input.key === "Enter" && userGuess.length === wordSize && !loading) {
       validateWord();
-    } else if (input.key === 'Backspace') {
+    } else if (input.key === "Backspace") {
       eraseLetter();
     } else if (regex.test(input.key)) {
       writeLetter(input);
@@ -88,17 +94,17 @@ async function init() {
         break;
       }
     }
-  }
+  };
 
   const eraseLetter = (): void => {
     if (userGuess.length > 0) {
       const slicedWord: string = userGuess.slice(0, -1);
       userGuess = slicedWord;
 
-      chars[currentIndex].textContent = '';
+      chars[currentIndex].textContent = "";
       currentIndex--;
     }
-  }
+  };
 
   const validateWord = async () => {
     const mappedDailyWord: Map<string, number> = stringMapper(dailyWord);
@@ -108,7 +114,7 @@ async function init() {
     console.log(loading);
 
     if (userGuess === dailyWord) {
-      console.log('You win!');
+      console.log("You win!");
     }
 
     // If not a valid word clear the row
@@ -116,10 +122,10 @@ async function init() {
       console.log(`${userGuess} is not a valid word`);
 
       for (let i = 0; i < dailyWord.length; i++) {
-        letterRows[currentLetterRow][i].textContent = '';
+        letterRows[currentLetterRow][i].textContent = "";
       }
 
-      userGuess = '';
+      userGuess = "";
       return;
     }
 
@@ -129,7 +135,7 @@ async function init() {
       const currentLetterQnt: number = mappedDailyWord.get(userGuess[i]) ?? 0;
 
       if (userGuess[i] === dailyWord[i]) {
-        letterRows[currentLetterRow][i].style.backgroundColor = 'green';
+        letterRows[currentLetterRow][i].style.backgroundColor = "green";
         mappedDailyWord.set(userGuess[i], currentLetterQnt - 1);
       }
     }
@@ -141,19 +147,19 @@ async function init() {
       if (userGuess[i] === dailyWord[i]) {
         // chill
       } else if (dailyWord.includes(userGuess[i]) && currentLetterQnt > 0) {
-        letterRows[currentLetterRow][i].style.backgroundColor = 'yellow';
+        letterRows[currentLetterRow][i].style.backgroundColor = "yellow";
         mappedDailyWord.set(userGuess[i], currentLetterQnt - 1);
       } else {
-        letterRows[currentLetterRow][i].style.backgroundColor = 'black';
-        letterRows[currentLetterRow][i].style.color = 'white';
+        letterRows[currentLetterRow][i].style.backgroundColor = "black";
+        letterRows[currentLetterRow][i].style.color = "white";
       }
     }
 
-    userGuess = '';
+    userGuess = "";
     currentLetterRow++;
-  }
+  };
 
-  document.addEventListener('keyup', handleInput, false);
+  document.addEventListener("keyup", handleInput, false);
 }
 
 init();
